@@ -77,9 +77,10 @@ if username and spot:
     if not weather:
         st.error("Failed to fetch weather.")
     else:
-        places = [r["place"] for r in weather["rainfall"]]
+        rainfall_data = weather.get("rainfall", [])
+        places = [r["place"] for r in rainfall_data if "place" in r]
         matched = find_best_match(spot, places)
-        rain = next((r for r in weather["rainfall"] if r["place"] == matched), {}).get("max", 0)
+        rain = next((r for r in rainfall_data if r.get("place") == matched), {}).get("max", 0)
         temp_data = weather.get("temperature", {}).get("data", [])
         avg_temp = sum([t["value"] for t in temp_data if isinstance(t["value"], (int, float))]) / len(temp_data)
 
