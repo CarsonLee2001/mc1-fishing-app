@@ -1,5 +1,4 @@
 
-# mc1_streamlit.py
 import streamlit as st
 import datetime
 import requests
@@ -24,11 +23,7 @@ def recommend_score(rain_chance, tide_type, moon_phase):
         score += 15
     if "滿月" in moon_phase or "上弦" in moon_phase:
         score += 10
-    if score > 100:
-        score = 100
-    if score < 0:
-        score = 0
-    return score
+    return max(0, min(score, 100))
 
 def get_hko_weather():
     url = "https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc"
@@ -78,9 +73,9 @@ if username and spot:
         st.error("Failed to fetch weather.")
     else:
         rainfall_data = weather.get("rainfall", [])
-        places = [r["place"] for r in rainfall_data if "place" in r]
+        places = [r.get("place", {}).get("tc") for r in rainfall_data if r.get("place")]
         matched = find_best_match(spot, places)
-        rain = next((r for r in rainfall_data if r.get("place") == matched), {}).get("max", 0)
+        rain = next((r for r in rainfall_data if r.get("place", {}).get("tc") == matched), {}).get("max", 0)
         temp_data = weather.get("temperature", {}).get("data", [])
         avg_temp = sum([t["value"] for t in temp_data if isinstance(t["value"], (int, float))]) / len(temp_data)
 
