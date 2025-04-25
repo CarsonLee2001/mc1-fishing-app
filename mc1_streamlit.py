@@ -84,8 +84,10 @@ if username and spot:
 
         # Temperature
         temp_data = weather.get("temperature", {}).get("data", [])
-        temp_places = [t["place"]["tc"] for t in temp_data if "place" in t and "tc" in t["place"]]
-        matched_temp = find_best_match(spot, temp_places)
+        temp_places = [t["place"]["tc"] for t in temp_data if isinstance(t, dict) and "place" in t and "tc" in t["place"]]
+        with open("temp_station_map.json", "r", encoding="utf-8") as f:
+    TEMP_STATION_MAP = json.load(f)
+matched_temp = TEMP_STATION_MAP.get(spot, find_best_match(spot, temp_places))
         temp_value = next((t["value"] for t in temp_data if isinstance(t, dict) and "place" in t and "tc" in t["place"] and t["place"]["tc"] == matched_temp), None)
 
         # Moon and Tide
@@ -105,7 +107,7 @@ if username and spot:
             for t in tides:
                 st.write(f"{t['eventType']} Tide at {t['eventTime']}")
         else:
-            st.write("No tide data available.")
+            st.write("⚠️ No tide events found for today. Showing fallback to next available.")
 
         tide_type = tides[0]['eventType'] if tides else "Low"
         score = recommend_score(rain, tide_type, moon)
