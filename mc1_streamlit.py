@@ -4,14 +4,24 @@ import datetime
 import requests
 import json
 import difflib
-from langdetect import detect
 
-TIDE_STATION_MAP = {
-    "馬灣": "荃灣", "西貢": "將軍澳", "大澳": "石壁", "長洲": "長洲",
-    "赤柱": "赤柱", "屯門": "青衣", "青衣": "荃灣", "荃灣": "荃灣",
-    "將軍澳": "將軍澳", "東涌": "石壁", "鰂魚涌": "北角", "北角": "北角",
-    "梅窩": "梅窩", "中環": "尖沙咀", "香港": "尖沙咀", "大嶼山": "石壁"
-}
+st.set_page_config(page_title="MC1 Fishing Assistant", layout="centered")
+st.title("🎣 MC1 AI Fishing Advisor")
+
+username = st.text_input("👤 Your Username")
+
+# Load district and location maps
+with open("hk_districts.json", "r", encoding="utf-8") as f:
+    HK_DISTRICTS = json.load(f)
+
+with open("district_to_tide_station.json", "r", encoding="utf-8") as f:
+    DISTRICT_TO_TIDE = json.load(f)
+
+with open("district_to_temp_station.json", "r", encoding="utf-8") as f:
+    DISTRICT_TO_TEMP = json.load(f)
+
+district = st.selectbox("📍 請選擇你所在區域", sorted(HK_DISTRICTS.keys()))
+spot = st.selectbox("🎣 請選擇具體釣魚地點", HK_DISTRICTS[district])
 
 def recommend_score(rain_chance, tide_type, moon_phase):
     score = 50
@@ -58,21 +68,6 @@ def get_moon_phase():
     else:
         return "🌕 滿月"
 
-def find_best_match(input_str, candidates):
-    match = difflib.get_close_matches(input_str, candidates, n=1, cutoff=0.6)
-    return match[0] if match else None
-
-st.set_page_config(page_title="MC1 Fishing Assistant", layout="centered")
-st.title("🎣 MC1 AI Fishing Advisor")
-
-username = st.text_input("👤 Your Username")
-
-with open("hk_districts.json", "r", encoding="utf-8") as f:
-    HK_DISTRICTS = json.load(f)
-
-district = st.selectbox("📍 請選擇你所在區域", sorted(HK_DISTRICTS.keys()))
-spot = st.selectbox("🎣 請選擇具體釣魚地點", HK_DISTRICTS[district])
-
 if username and spot:
     st.success(f"Welcome {username}! Checking info for {spot}...")
 
@@ -80,27 +75,38 @@ if username and spot:
     if not weather:
         st.error("Failed to fetch weather.")
     else:
+        # 🌧️ Rainfall
         rainfall_data = weather.get("rainfall", [])
         rain_places = [r["place"]["tc"] for r in rainfall_data if isinstance(r, dict) and "place" in r and "tc" in r["place"]]
-        matched_rain = find_best_match(spot, rain_places) or spot
-        rain = next((r for r in rainfall_data if isinstance(r, dict) and r.get("place", {}).get("tc") == matched_rain), {}).get("max", 0)
+        rain = next((r["max"] for r in rainfall_data if r.get("place", {}).get("tc") == spot), 0)
 
+        # 🌡️ Temperature
         temp_data = weather.get("temperature", {}).get("data", [])
-        mapped_temp_spot = spot  # user now directly selects the spot, so use it
-        temp_value = next((t["value"] for t in temp_data if isinstance(t, dict) and "value" in t and isinstance(t.get("place"), dict) and t["place"].get("tc") == mapped_temp_spot), None)
+        temp_spot = DISTRICT_TO_TEMP.get(district)
+        temp_value = next(
+            (t["value"] for t in temp_data
+             if isinstance(t, dict)
+             and "value" in t
+             and isinstance(t.get("place"), dict)
+             and t["place"].get("tc") == temp_spot),
+            None
+        )
 
+        # 🌕 Moon phase
         moon = get_moon_phase()
-        station = TIDE_STATION_MAP.get(spot, "尖沙咀")
-        tides = get_tide_data(station)
 
-        st.markdown(f"### 🌤️ Weather Info ({matched_rain})")
-        st.write(f"🌡️ Temp in {mapped_temp_spot}: {temp_value}°C" if temp_value else "🌡️ Temperature data not found")
+        # 🌊 Tide info
+        tide_station = DISTRICT_TO_TIDE.get(district, "尖沙咀")
+        tides = get_tide_data(tide_station)
+
+        st.markdown(f"### 🌤️ Weather Info ({spot})")
+        st.write(f"🌡️ Temp in {temp_spot}: {temp_value}°C" if temp_value else "🌡️ Temperature data not found")
         st.write(f"🌧️ Rainfall: {rain} mm")
 
         st.markdown(f"### 🌕 Moon Phase")
         st.write(f"{moon}")
 
-        st.markdown(f"### 🌊 Tide Info ({station})")
+        st.markdown(f"### 🌊 Tide Info ({tide_station})")
         if tides:
             for t in tides:
                 st.write(f"{t['eventType']} Tide at {t['eventTime']}")
