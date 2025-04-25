@@ -31,13 +31,17 @@ def get_hko_weather():
     return r.json() if r.status_code == 200 else None
 
 def get_tide_data(station_name):
-    today = datetime.date.today().strftime("%Y%m%d")
-    url = f"https://data.weather.gov.hk/weatherAPI/opendata/tideTimes.php?year={today[:4]}&lang=tc"
+    today = datetime.date.today()
+    today_str = today.strftime("%Y%m%d")
+    url = f"https://data.weather.gov.hk/weatherAPI/opendata/tideTimes.php?year={today.year}&lang=tc"
     try:
         r = requests.get(url)
-        data = r.json()
-        tides = [t for t in data.get("tide", []) if station_name in t.get("place", "")]
-        return tides[:3]
+        data = r.json().get("tide", [])
+        # Filter to today and matching station
+        def is_today(t):
+            return t.get("year")+t.get("month").zfill(2)+t.get("day").zfill(2) == today_str
+        tides = [t for t in data if station_name in t.get("place", "") and is_today(t)]
+        return tides[:3] if tides else [t for t in data if station_name in t.get("place", "")][:3]
     except:
         return []
 
@@ -72,19 +76,25 @@ if username and spot:
     if not weather:
         st.error("Failed to fetch weather.")
     else:
+        # Rainfall
         rainfall_data = weather.get("rainfall", [])
-        places = [r["place"]["tc"] for r in rainfall_data if isinstance(r, dict) and "place" in r and "tc" in r["place"]]
-        matched = find_best_match(spot, places) or "您輸入的地點"
-        rain = next((r for r in rainfall_data if isinstance(r, dict) and r.get("place", {}).get("tc") == matched), {}).get("max", 0)
-        temp_data = weather.get("temperature", {}).get("data", [])
-        avg_temp = sum([t["value"] for t in temp_data if isinstance(t["value"], (int, float))]) / len(temp_data) if temp_data else 0
+        rain_places = [r["place"]["tc"] for r in rainfall_data if isinstance(r, dict) and "place" in r and "tc" in r["place"]]
+        matched_rain = find_best_match(spot, rain_places) or spot
+        rain = next((r for r in rainfall_data if isinstance(r, dict) and r.get("place", {}).get("tc") == matched_rain), {}).get("max", 0)
 
+        # Temperature
+        temp_data = weather.get("temperature", {}).get("data", [])
+        temp_places = [t["place"]["tc"] for t in temp_data if "place" in t and "tc" in t["place"]]
+        matched_temp = find_best_match(spot, temp_places)
+        temp_value = next((t["value"] for t in temp_data if t["place"]["tc"] == matched_temp), None)
+
+        # Moon and Tide
         moon = get_moon_phase()
         station = TIDE_STATION_MAP.get(spot, "尖沙咀")
         tides = get_tide_data(station)
 
-        st.markdown(f"### 🌤️ Weather Info ({matched})")
-        st.write(f"🌡️ Avg Temp: {avg_temp:.1f}°C")
+        st.markdown(f"### 🌤️ Weather Info ({matched_rain})")
+        st.write(f"🌡️ Temp in {matched_temp}: {temp_value}°C" if temp_value else "🌡️ Temperature data not found")
         st.write(f"🌧️ Rainfall: {rain} mm")
 
         st.markdown(f"### 🌕 Moon Phase")
