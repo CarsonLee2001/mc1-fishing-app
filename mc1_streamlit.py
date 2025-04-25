@@ -74,10 +74,10 @@ if username and spot:
     else:
         rainfall_data = weather.get("rainfall", [])
         places = [r["place"]["tc"] for r in rainfall_data if isinstance(r, dict) and "place" in r and "tc" in r["place"]]
-        matched = find_best_match(spot, places)
+        matched = find_best_match(spot, places) or "您輸入的地點"
         rain = next((r for r in rainfall_data if isinstance(r, dict) and r.get("place", {}).get("tc") == matched), {}).get("max", 0)
         temp_data = weather.get("temperature", {}).get("data", [])
-        avg_temp = sum([t["value"] for t in temp_data if isinstance(t["value"], (int, float))]) / len(temp_data)
+        avg_temp = sum([t["value"] for t in temp_data if isinstance(t["value"], (int, float))]) / len(temp_data) if temp_data else 0
 
         moon = get_moon_phase()
         station = TIDE_STATION_MAP.get(spot, "尖沙咀")
@@ -91,8 +91,11 @@ if username and spot:
         st.write(f"{moon}")
 
         st.markdown(f"### 🌊 Tide Info ({station})")
-        for t in tides:
-            st.write(f"{t['eventType']} Tide at {t['eventTime']}")
+        if tides:
+            for t in tides:
+                st.write(f"{t['eventType']} Tide at {t['eventTime']}")
+        else:
+            st.write("No tide data available.")
 
         tide_type = tides[0]['eventType'] if tides else "Low"
         score = recommend_score(rain, tide_type, moon)
