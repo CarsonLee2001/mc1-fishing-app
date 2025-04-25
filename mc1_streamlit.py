@@ -37,7 +37,6 @@ def get_tide_data(station_name):
     try:
         r = requests.get(url)
         data = r.json().get("tide", [])
-        # Filter to today and matching station
         def is_today(t):
             return t.get("year")+t.get("month").zfill(2)+t.get("day").zfill(2) == today_str
         tides = [t for t in data if station_name in t.get("place", "") and is_today(t)]
@@ -67,7 +66,12 @@ st.set_page_config(page_title="MC1 Fishing Assistant", layout="centered")
 st.title("🎣 MC1 AI Fishing Advisor")
 
 username = st.text_input("👤 Your Username")
-spot = st.text_input("📍 Fishing Spot (e.g., 馬灣, 西貢, 大澳)")
+
+with open("hk_districts.json", "r", encoding="utf-8") as f:
+    HK_DISTRICTS = json.load(f)
+
+district = st.selectbox("📍 請選擇你所在區域", sorted(HK_DISTRICTS.keys()))
+spot = st.selectbox("🎣 請選擇具體釣魚地點", HK_DISTRICTS[district])
 
 if username and spot:
     st.success(f"Welcome {username}! Checking info for {spot}...")
@@ -76,27 +80,21 @@ if username and spot:
     if not weather:
         st.error("Failed to fetch weather.")
     else:
-        # Rainfall
         rainfall_data = weather.get("rainfall", [])
         rain_places = [r["place"]["tc"] for r in rainfall_data if isinstance(r, dict) and "place" in r and "tc" in r["place"]]
         matched_rain = find_best_match(spot, rain_places) or spot
         rain = next((r for r in rainfall_data if isinstance(r, dict) and r.get("place", {}).get("tc") == matched_rain), {}).get("max", 0)
 
-        # Temperature
         temp_data = weather.get("temperature", {}).get("data", [])
-        temp_places = [t["place"]["tc"] for t in temp_data if isinstance(t, dict) and "place" in t and "tc" in t["place"]]
-        with open("temp_station_map.json", "r", encoding="utf-8") as f:
-    TEMP_STATION_MAP = json.load(f)
-matched_temp = TEMP_STATION_MAP.get(spot, find_best_match(spot, temp_places))
-        temp_value = next((t["value"] for t in temp_data if isinstance(t, dict) and "place" in t and "tc" in t["place"] and t["place"]["tc"] == matched_temp), None)
+        mapped_temp_spot = spot  # user now directly selects the spot, so use it
+        temp_value = next((t["value"] for t in temp_data if isinstance(t, dict) and t.get("place", {}).get("tc") == mapped_temp_spot), None)
 
-        # Moon and Tide
         moon = get_moon_phase()
         station = TIDE_STATION_MAP.get(spot, "尖沙咀")
         tides = get_tide_data(station)
 
         st.markdown(f"### 🌤️ Weather Info ({matched_rain})")
-        st.write(f"🌡️ Temp in {matched_temp}: {temp_value}°C" if temp_value else "🌡️ Temperature data not found")
+        st.write(f"🌡️ Temp in {mapped_temp_spot}: {temp_value}°C" if temp_value else "🌡️ Temperature data not found")
         st.write(f"🌧️ Rainfall: {rain} mm")
 
         st.markdown(f"### 🌕 Moon Phase")
