@@ -86,7 +86,7 @@ if username and spot:
         temp_data = weather.get("temperature", {}).get("data", [])
         temp_places = [t["place"]["tc"] for t in temp_data if "place" in t and "tc" in t["place"]]
         matched_temp = find_best_match(spot, temp_places)
-        temp_value = next((t["value"] for t in temp_data if t["place"]["tc"] == matched_temp), None)
+        temp_value = next((t["value"] for t in temp_data if isinstance(t, dict) and "place" in t and "tc" in t["place"] and t["place"]["tc"] == matched_temp), None)
 
         # Moon and Tide
         moon = get_moon_phase()
