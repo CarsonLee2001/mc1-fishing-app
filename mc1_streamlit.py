@@ -68,7 +68,33 @@ def get_moon_phase():
     else:
         return "🌕 滿月"
 
-if username and spot:
+
+    # 🌡️ Display area temp after district selection
+    temp_spot = DISTRICT_TO_TEMP.get(district)
+    temp_data = weather.get("temperature", {}).get("data", [])
+    temp_value = next(
+        (t["value"] for t in temp_data
+         if isinstance(t, dict)
+         and "value" in t
+         and isinstance(t.get("place"), dict)
+         and t["place"].get("tc") == temp_spot),
+        None
+    )
+    if temp_value:
+        st.markdown(f"🌡️ {district}（{temp_spot}）目前氣溫：約 {temp_value}°C")
+    else:
+        st.markdown("🌡️ 無法取得氣溫數據")
+
+    # 🌡️ Option B: Sidebar temp display
+    with st.sidebar:
+        st.markdown("### 📡 當前區域氣溫")
+        if temp_value:
+            st.metric(label=f"{district}（{temp_spot}）", value=f"{temp_value}°C")
+        else:
+            st.text("資料暫不可用")
+
+    if username and spot:
+    
     st.success(f"Welcome {username}! Checking info for {spot}...")
 
     weather = get_hko_weather()
