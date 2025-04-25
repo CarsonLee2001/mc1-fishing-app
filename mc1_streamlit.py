@@ -68,7 +68,10 @@ def get_moon_phase():
     else:
         return "🌕 滿月"
 
-
+weather = get_hko_weather()
+if not weather:
+    st.error("❌ 無法取得天氣資料")
+else:
     # 🌡️ Display area temp after district selection
     temp_spot = DISTRICT_TO_TEMP.get(district)
     temp_data = weather.get("temperature", {}).get("data", [])
@@ -85,7 +88,6 @@ def get_moon_phase():
     else:
         st.markdown("🌡️ 無法取得氣溫數據")
 
-    # 🌡️ Option B: Sidebar temp display
     with st.sidebar:
         st.markdown("### 📡 當前區域氣溫")
         if temp_value:
@@ -94,47 +96,24 @@ def get_moon_phase():
             st.text("資料暫不可用")
 
     if username and spot:
-    
-    st.success(f"Welcome {username}! Checking info for {spot}...")
+        st.success(f"Welcome {username}! Checking info for {spot}...")
 
-    weather = get_hko_weather()
-    if not weather:
-        st.error("Failed to fetch weather.")
-    else:
-        # 🌧️ Rainfall
         rainfall_data = weather.get("rainfall", [])
-        rain_places = [r["place"]["tc"] for r in rainfall_data if isinstance(r, dict) and "place" in r and "tc" in r["place"]]
         rain = next((
-    r["max"] for r in rainfall_data
-    if isinstance(r, dict)
-    and "max" in r
-    and isinstance(r.get("place"), dict)
-    and r["place"].get("tc") == spot
-), 0)
+            r["max"] for r in rainfall_data
+            if isinstance(r, dict)
+            and "max" in r
+            and isinstance(r.get("place"), dict)
+            and r["place"].get("tc") == spot
+        ), 0)
 
-        # 🌡️ Temperature
-        temp_data = weather.get("temperature", {}).get("data", [])
-        temp_spot = DISTRICT_TO_TEMP.get(district)
-        temp_value = next(
-            (t["value"] for t in temp_data
-             if isinstance(t, dict)
-             and "value" in t
-             and isinstance(t.get("place"), dict)
-             and t["place"].get("tc") == temp_spot),
-            None
-        )
-
-        # 🌕 Moon phase
         moon = get_moon_phase()
-
-        # 🌊 Tide info
         tide_station = DISTRICT_TO_TIDE.get(district, "尖沙咀")
         tides = get_tide_data(tide_station)
 
         st.markdown(f"### 🌤️ Weather Info ({spot})")
         st.write(f"🌡️ Temp in {temp_spot}: {temp_value}°C" if temp_value else "🌡️ Temperature data not found")
         st.write(f"🌧️ Rainfall: {rain} mm")
-
         st.markdown(f"### 🌕 Moon Phase")
         st.write(f"{moon}")
 
