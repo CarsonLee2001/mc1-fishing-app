@@ -87,7 +87,7 @@ if username and spot:
 
         temp_data = weather.get("temperature", {}).get("data", [])
         mapped_temp_spot = spot  # user now directly selects the spot, so use it
-        temp_value = next((t["value"] for t in temp_data if isinstance(t, dict) and t.get("place", {}).get("tc") == mapped_temp_spot), None)
+        temp_value = next((t["value"] for t in temp_data if isinstance(t, dict) and "value" in t and isinstance(t.get("place"), dict) and t["place"].get("tc") == mapped_temp_spot), None)
 
         moon = get_moon_phase()
         station = TIDE_STATION_MAP.get(spot, "尖沙咀")
