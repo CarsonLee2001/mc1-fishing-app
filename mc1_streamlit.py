@@ -78,7 +78,13 @@ if username and spot:
         # 🌧️ Rainfall
         rainfall_data = weather.get("rainfall", [])
         rain_places = [r["place"]["tc"] for r in rainfall_data if isinstance(r, dict) and "place" in r and "tc" in r["place"]]
-        rain = next((r["max"] for r in rainfall_data if r.get("place", {}).get("tc") == spot), 0)
+        rain = next((
+    r["max"] for r in rainfall_data
+    if isinstance(r, dict)
+    and "max" in r
+    and isinstance(r.get("place"), dict)
+    and r["place"].get("tc") == spot
+), 0)
 
         # 🌡️ Temperature
         temp_data = weather.get("temperature", {}).get("data", [])
